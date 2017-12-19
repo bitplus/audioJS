@@ -2,6 +2,7 @@
  * audioJS
  * author: Evandro Leopoldino Gonçalves <evandrolgoncalves@gmail.com>
  * https://github.com/evandrolg
+ * modified: bitplus (https://github.com/bitplus)
  * License: MIT
  */
 (function (window) {
@@ -18,6 +19,22 @@
             httpRequest.open('GET', params.file, true);
             httpRequest.responseType = 'arraybuffer';
             httpRequest.send();
+        } catch (e) {
+            window.console.log(e);
+        }
+    };
+
+    var getArrayBuffer = function (params) {
+        var fileReader = new FileReader();
+
+        //end of converting to array buffer
+        fileReader.onloadend = function () {
+            params.success(fileReader.result);
+        }
+
+        try {
+            //convert byte to array buffer
+            fileReader.readAsArrayBuffer(params.file);
         } catch (e) {
             window.console.log(e);
         }
@@ -50,7 +67,7 @@
     AudioJS.prototype = {
         _validateFormat: function () {
             var regex = /\.(mp3|opus|ogg|wav|m4a|weba)$/;
-            var isValid = regex.test(this.file);
+            var isValid = regex.test(this.file) || (this.file instanceof Blob);
 
             if (!isValid) {
                 throw 'The format of the audio file is invalid!';
@@ -80,22 +97,30 @@
                 this.autoPlay = params.autoPlay;
                 this.loop = params.loop || false;
                 this.volume = params.volume || 1;
+                this.isBlob = params.file instanceof Blob;
+
+                this.gainNode = this.audioContext.createGain();
+                this.gainNode.gain.setTargetAtTime(this.volume, this.audioContext.currentTime, 0.015);
+                this.gainNode.connect(this.audioContext.destination);
             }
 
             this._validateFormat();
+
+
 
             this.callbackManager = new CallbackManager();
         },
 
         _load: function () {
             var that = this;
+            var func = this.isBlob ? getArrayBuffer : ajax;
 
-            ajax({
+            func({
                 file: this.file,
                 success: function (response) {
                     that._decodeAudioData.call(that, response);
-                    Registry.musicLoaded = true;
-                    updateLoader();
+                    //Registry.musicLoaded = true;
+                    //updateLoader();
                 }
             });
         },
@@ -108,8 +133,8 @@
                 function (buffer) {
                     that.source = audioContext.createBufferSource();
                     that.source.buffer = buffer;
-                    that.source.connect(audioContext.destination);
-                    that.source.gain.value = that.volume;
+                    //that.source.connect(audioContext.destination);
+                    that.source.connect(that.gainNode);
                     that.source.loop = that.loop;
                     that.buffer = buffer;
 
@@ -144,8 +169,9 @@
             if (this.buffer && this.shouldPlay) {
                 this.source = this.audioContext.createBufferSource();
                 this.source.buffer = this.buffer;
-                this.source.connect(this.audioContext.destination);
-                this.source.gain.value = this.volume;
+                //this.source.connect(this.audioContext.destination);
+                //this.source.gain.value = this.volume;
+                this.source.connect(this.gainNode);
                 this.source.loop = this.loop;
                 this.source.start(0);
                 this.isStarted = true;
