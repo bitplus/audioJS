@@ -81,8 +81,12 @@
             if (!hasSupport) {
                 throw 'Your browser does not support API AudioContext!';
             }
+            
+            if (AudioJS.prototype._audioContext === undefined||!AudioJS.prototype._audioContext) {
+              AudioJS.prototype._audioContext = new AudioContext;
+            }
 
-            this.audioContext = new AudioContext;
+            this.audioContext = AudioJS.prototype._audioContext;
         },
 
         _cachedVariabes: function (params) {
@@ -155,6 +159,10 @@
         },
 
         _play: function () {
+            this.source.addEventListener('ended', function () {
+                //console.log('source ended 1');
+                //callback(source);
+            }, false);
             this.source.start(0);
             this.isStarted = true;
         },
@@ -173,6 +181,10 @@
                 //this.source.gain.value = this.volume;
                 this.source.connect(this.gainNode);
                 this.source.loop = this.loop;
+                this.source.addEventListener('ended', function () {
+                    //console.log('source ended 2');
+                    //callback(source);
+                }, false);
                 this.source.start(0);
                 this.isStarted = true;
             }
